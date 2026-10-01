@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MeterScan">
+<title>MeterScan Pro</title>
+<style>
+:root {
+  --bg: #e8edf2;
+  --surf: #ffffff;
+  --border: #b8c4d0;
+  --accent: #0057d9;
+  --accent-txt: #ffffff;
+  --text: #0d1b2a;
+  --muted: #4a5a6b;
+  --danger: #c0001a;
+  --gas: #c25a00;
+  --water: #0053b3;
+  --elektra: #8a6200;
+  --kast: #6024b0;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,Arial,sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+#content{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;padding-bottom:88px;-webkit-overflow-scrolling:touch}
+#tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--surf);border-top:2px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.tab{flex:1;padding:10px 4px 12px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);border:none;background:none;transition:color .15s}
+.tab.active{color:var(--accent)}
+.tab-icon{font-size:24px;display:block;margin:0 auto 2px}
+
+/* Buttons */
+.btn{padding:16px 20px;border-radius:12px;border:none;font-size:17px;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;transition:opacity .15s}
+.btn:active{opacity:.75}
+.btn-p{background:var(--accent);color:#fff}
+.btn-d{background:var(--danger);color:#fff}
+.btn-o{background:transparent;border:2px solid var(--border);color:var(--text)}
+.btn:disabled{opacity:.3;cursor:default}
+
+/* Card */
+.card{background:var(--surf);border:1px solid var(--border);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.card-p{padding:16px}
+
+/* Address list */
+.al-item{padding:15px 16px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .1s}
+.al-item:last-child{border-bottom:none}
+.al-item:active{background:#dde5f0}
+.al-item .cnt{background:var(--accent);color:#fff;border-radius:10px;padding:2px 9px;font-size:12px;font-weight:700;margin-left:auto;white-space:nowrap;flex-shrink:0}
+
+/* Type buttons */
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.type-btn{padding:18px 10px;border-radius:14px;border:2px solid var(--border);cursor:pointer;font-size:15px;font-weight:700;text-align:center;background:var(--surf);color:var(--text);transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.type-btn:active{transform:scale(.97)}
+.type-btn.sel.gas{background:#c25a00;color:#fff;border-color:#c25a00}
+.type-btn.sel.water{background:#0053b3;color:#fff;border-color:#0053b3}
+.type-btn.sel.elektra{background:#8a6200;color:#fff;border-color:#8a6200}
+.type-btn.sel.kast{background:#6024b0;color:#fff;border-color:#6024b0}
+.type-btn.gas{border-color:#c25a00;color:#c25a00}
+.type-btn.water{border-color:#0053b3;color:#0053b3}
+.type-btn.elektra{border-color:#8a6200;color:#8a6200}
+.type-btn.kast{border-color:#6024b0;color:#6024b0}
+.type-icon{font-size:30px;display:block;margin-bottom:6px}
+
+/* Form */
+.fg{margin-bottom:16px}
+label.lbl{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+input[type=number],input[type=text]{width:100%;padding:15px 16px;background:#f4f7fa;border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:24px;font-weight:700}
+input:focus{outline:none;border-color:var(--accent);background:#fff}
+input::placeholder{color:#9aacbe}
+
+/* Photo */
+.foto-btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;background:#f4f7fa;border:2px dashed var(--border);border-radius:12px;cursor:pointer;color:var(--muted);font-size:15px;width:100%;font-weight:700}
+.foto-preview{width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-top:8px;display:block}
+.foto-wrap{position:relative}
+.foto-del{position:absolute;top:14px;right:8px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:40px;height:40px;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;z-index:10}
+
+/* Reading items */
+.mi{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.mi:last-child{border-bottom:none}
+.mi-bar{width:5px;height:44px;border-radius:3px;flex-shrink:0}
+.mi-info{flex:1;min-width:0}
+.mi-stand{font-size:18px;font-weight:700;line-height:1.2;color:var(--text)}
+.mi-meta{font-size:12px;color:var(--muted);margin-top:3px}
+.mi-thumb{width:54px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer;border:1px solid var(--border)}
+.mi-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;padding:6px;flex-shrink:0}
+.mi-del:active{color:var(--danger)}
+
+/* Rapport */
+.rp-hdr{font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.4px;padding:10px 16px;background:var(--accent);border-bottom:1px solid var(--border)}
+
+/* Search + section header */
+.sbox{width:100%;padding:13px 16px;background:#fff;border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;margin-bottom:12px;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.sbox::placeholder{color:#9aacbe}
+.sbox:focus{outline:none;border-color:var(--accent)}
+.shdr{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
+
+/* Toast */
+#toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#0d1b2a;color:#fff;padding:12px 24px;border-radius:24px;font-weight:700;font-size:15px;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+
+/* Empty state */
+.leeg{text-align:center;padding:40px 20px;color:var(--muted);font-size:15px;line-height:1.6}
+
+/* Lightbox */
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:500;align-items:center;justify-content:center}
+#lightbox.open{display:flex}
+#lightbox img{max-width:96vw;max-height:92vh;object-fit:contain;border-radius:8px}
+#lightbox-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:40px;height:40px;font-size:22px;cursor:pointer}
+
+/* Beheer row */
+.bh-row{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.bh-row:last-child{border-bottom:none}
+.bh-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;margin-left:auto;padding:4px 8px}
+
+/* Date select */
+select{padding:11px 14px;background:#fff;border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-weight:600;width:100%}
+select:focus{outline:none;border-color:var(--accent)}
+
+/* Info strip */
+.strip{background:#ddeeff;border:1px solid #9abce8;border-radius:10px;padding:12px 14px;font-size:13px;color:#00347a;margin-bottom:14px;line-height:1.5;font-weight:600}
+
+/* Foto bewerken knop */
+.foto-edit{position:absolute;top:14px;right:58px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:40px;height:40px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;z-index:10}
+
+/* Foto editor modal — blijft donker voor contrast bij foto's */
+#ed-modal{display:none;position:fixed;inset:0;background:#000;z-index:600;flex-direction:column}
+#ed-toolbar{display:flex;align-items:center;gap:8px;padding:12px 14px;background:#111;border-bottom:1px solid #222;flex-shrink:0;padding-top:max(12px, env(safe-area-inset-top))}
+.ed-btn{padding:10px 16px;border:none;border-radius:10px;font-size:22px;cursor:pointer;background:#2a2a2a;color:#fff;line-height:1;touch-action:manipulation}
+.ed-btn:active{opacity:.7}
+.ed-btn-p{background:#0057d9;color:#fff;font-size:14px;font-weight:700;padding:10px 18px}
+.ed-btn-o{background:#2a2a2a;color:#aaa;font-size:14px;padding:10px 18px}
+#ed-hint{font-size:11px;color:#666;text-align:center;padding:4px;flex-shrink:0}
+#ed-canvas{flex:1;touch-action:none;cursor:crosshair;display:block;width:100%}
+</style>
+</head>
+<body>
+
+<div id="content"></div>
+
+<div id="tabbar">
+  <button class="tab active" id="tab-scan" onclick="setTab('scan')">
+    <span class="tab-icon">📷</span>Scan
+  </button>
+  <button class="tab" id="tab-rapport" onclick="setTab('rapport')">
+    <span class="tab-icon">📋</span>Rapport
+  </button>
+  <button class="tab" id="tab-beheer" onclick="setTab('beheer')">
+    <span class="tab-icon">⚙️</span>Beheer
+  </button>
+</div>
+
+<div id="lightbox" onclick="sluitLightbox()">
+  <button id="lightbox-close" onclick="sluitLightbox()">✕</button>
+  <img id="lightbox-img" src="">
+</div>
+
+<div id="toast"></div>
+
+<!-- FOTO EDITOR MODAL -->
+<div id="ed-modal">
+  <div id="ed-toolbar">
+    <button class="ed-btn" id="ed-rot-l" title="Draaien links">↺</button>
+    <button class="ed-btn" id="ed-rot-r" title="Draaien rechts">↻</button>
+    <button class="ed-btn" id="ed-reset" title="Uitsnede resetten" style="font-size:13px;padding:10px 12px">↕ Reset</button>
+    <div style="flex:1"></div>
+    <button class="ed-btn ed-btn-o" id="ed-annul">Annuleren</button>
+    <button class="ed-btn ed-btn-p" id="ed-apply">✓ Toepassen</button>
+  </div>
+  <div id="ed-hint">Sleep hoeken om uit te snijden · Tik in midden om te verschuiven</div>
+  <canvas id="ed-canvas"></canvas>
+</div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════
+// STANDAARD ADRESSEN — hardcoded, geen laden nodig
+// ══════════════════════════════════════════════════
+const STANDAARD = [
+  "Beukenlaan 7","Beukenlaan 9","Beukenlaan 10","Beukenlaan 12","Beukenlaan 14",
+  "Berkenlaan 2","Berkenlaan 7","Berkenlaan 8","Berkenlaan 9",
+  "Denneweg 4","Denneweg 8","Denneweg 10","Denneweg 12",
+  "Eikenlaan 4","Eikenlaan 7","Eikenlaan 8","Eikenlaan 9","Eikenlaan 10","Eikenlaan 13",
+  "Elzenpad 2",
+  "Kastanjelaan 1","Kastanjelaan 3","Kastanjelaan 5","Kastanjelaan 6","Kastanjelaan 7",
+  "Kastanjelaan 8","Kastanjelaan 9","Kastanjelaan 10","Kastanjelaan 11","Kastanjelaan 12","Kastanjelaan 14",
+  "Lijsterbeslaan 1","Lijsterbeslaan 2","Lijsterbeslaan 3","Lijsterbeslaan 4",
+  "Lijsterbeslaan 6","Lijsterbeslaan 7","Lijsterbeslaan 8","Lijsterbeslaan 9","Lijsterbeslaan 10",
+  "Lindenlaan 1","Lindenlaan 7","Lindenlaan 8","Lindenlaan 9",
+  "Lindenlaan 11","Lindenlaan 12","Lindenlaan 15","Lindenlaan 16","Lindenlaan 20",
+  "Populierenlaan 1","Populierenlaan 1a","Populierenlaan 2","Populierenlaan 3","Populierenlaan 4",
+  "Populierenlaan 5","Populierenlaan 7","Populierenlaan 9","Populierenlaan 10",
+  "Populierenlaan 11","Populierenlaan 12","Populierenlaan 14","Populierenlaan 16",
+  "Rondweg 1","Rondweg 4","Rondweg 8","Rondweg 9","Rondweg 10","Rondweg 11","Rondweg 12",
+  "Rondweg 14","Rondweg 16","Rondweg 18","Rondweg 20","Rondweg 22","Rondweg 24",
+  "Rondweg 25","Rondweg 28","Rondweg 30","Rondweg 32","Rondweg 34","Rondweg 38",
+  "Vosch van Avesaet 3","Vosch van Avesaet 8","Vosch van Avesaet 12","Vosch van Avesaet 13",
+  "Vosch van Avesaet 16","Vosch van Avesaet 20","Vosch van Avesaet 26","Vosch van Avesaet 28",
+  "Vosch van Avesaet 30","Vosch van Avesaet 36","Vosch van Avesaet 38","Vosch van Avesaet 40",
+  "Vosch van Avesaet 42","Vosch van Avesaet 44","Vosch van Avesaet 46","Vosch van Avesaet 48",
+  "Vosch van Avesaet 50","Vosch van Avesaet 52"
+];
+
+// ══════════════════════════════════════════════════
+// TYPE INFO
+// ══════════════════════════════════════════════════
+const TYPES = {
+  gas:     { label:'Gas',     icon:'🔥', een:'m³',  kleur:'#f59e0b' },
+  water:   { label:'Water',   icon:'💧', een:'m³',  kleur:'#3b82f6' },
+  elektra: { label:'Elektra', icon:'⚡', een:'kWh', kleur:'#fbbf24' },
+  kast:    { label:'Kast',    icon:'🗄️', een:'',    kleur:'#8b5cf6' }
+};
+
+// ══════════════════════════════════════════════════
+// INDEXEDDB
+// ══════════════════════════════════════════════════
+let _db = null;
+function openDB() {
+  if (_db) return Promise.resolve(_db);
+  return new Promise((ok, err) => {
+    const r = indexedDB.open('meterscan_pro', 1);
+    r.onerror = () => err(r.error);
+    r.onsuccess = () => { _db = r.result; ok(_db); };
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('metingen')) {
+        d.createObjectStore('metingen', { keyPath: 'id' });
+      }
+    };
+  });
+}
+async function dbAll() {
+  const d = await openDB();
+  return new Promise((ok,err) => {
+    const r = d.transaction('metingen','readonly').objectStore('metingen').getAll();
+    r.onsuccess = () => ok(r.result || []);
+    r.onerror = () => err(r.error);
+  });
+}
+async function dbPut(item) {
+  const d = await openDB();
+  return new Promise((ok,err) => {
+    const tx = d.transaction('metingen','readwrite');
+    tx.objectStore('metingen').put(item);
+    tx.oncomplete = ok;
+    tx.onerror = () => err(tx.error);
+  });
+}
+async function dbDel(id) {
+  const d = await openDB();
+  return new Promise((ok,err) => {
+    const tx = d.transaction('metingen','readwrite');
+    tx.objectStore('metingen').delete(id);
+    tx.oncomplete = ok;
+    tx.onerror = () => err(tx.error);
+  });
+}
+async function dbClear() {
+  const d = await openDB();
+  return new Promise((ok,err) => {
+    const tx = d.transaction('metingen','readwrite');
+    tx.objectStore('metingen').clear();
+    tx.oncomplete = ok;
+    tx.onerror = () => err(tx.error);
+  });
+}
+
+// ══════════════════════════════════════════════════
+// FOTO COMPRESSIE — max 800px, 50% kwaliteit ≈ 50-80 KB
+// ══════════════════════════════════════════════════
+function compressFoto(file) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 800;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.5));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+// ══════════════════════════════════════════════════
+// ADRESSENLIJST (standaard + extra, minus verwijderd)
+// ══════════════════════════════════════════════════
+function getAdressen() {
+  const extra = JSON.parse(localStorage.getItem('ms_extra') || '[]');
+  const weg   = JSON.parse(localStorage.getItem('ms_weg')   || '[]');
+  return [...new Set([...STANDAARD, ...extra])]
+    .filter(a => !weg.includes(a))
+    .sort((a, b) => a.localeCompare(b, 'nl'));
+}
+
+// Namen per adres
+function getNamen() { return JSON.parse(localStorage.getItem('ms_namen') || '{}'); }
+function getNaam(adres) { return getNamen()[adres] || ''; }
+function setNaam(adres, naam) {
+  const n = getNamen();
+  if (naam) n[adres] = naam; else delete n[adres];
+  localStorage.setItem('ms_namen', JSON.stringify(n));
+}
+
+// ══════════════════════════════════════════════════
+// APP STATE
+// ══════════════════════════════════════════════════
+let tab       = 'scan';
+let selAdres  = null;
+let selType   = null;
+let stand     = '';
+let foto      = null;
+let notitie   = '';
+let zoek      = '';
+let selDatum  = vandaag();
+let metingen  = [];
+
+function vandaag() { return new Date().toISOString().slice(0,10); }
+function nu()      { return new Date().toTimeString().slice(0,5); }
+function esc(s)    { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ══════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════
+function setTab(t) {
+  tab = t;
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.id === 'tab-'+t));
+  render();
+}
+
+async function render() {
+  metingen = await dbAll();
+  const el = document.getElementById('content');
+  if (tab === 'scan')    el.innerHTML = renderScan();
+  if (tab === 'rapport') el.innerHTML = renderRapport();
+  if (tab === 'beheer')  el.innerHTML = renderBeheer();
+  bindAll();
+}
+
+// ─────────────────────────────────────────────────
+// SCAN TAB
+// ─────────────────────────────────────────────────
+function renderScan() {
+  const vd = vandaag();
+  const telPerAdres = {};
+  metingen.filter(m => m.datum === vd).forEach(m => {
+    telPerAdres[m.adres] = (telPerAdres[m.adres] || 0) + 1;
+  });
+
+  // ── Adres geselecteerd: toon alleen dat adres + formulier ──
+  if (selAdres) {
+    const naam = getNaam(selAdres);
+    const cnt  = telPerAdres[selAdres];
+    let html = `
+      <button id="terug-btn" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--muted);font-size:14px;padding:0;margin-bottom:12px;cursor:pointer">
+        ← Terug naar adressen
+      </button>
+      <div class="card card-p" style="border-color:var(--accent);margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="font-size:18px;font-weight:700;color:var(--accent);flex:1">${esc(selAdres)}</div>
+          ${cnt ? `<span class="cnt">${cnt}</span>` : ''}
+        </div>
+        <label class="lbl" style="margin-bottom:6px">Naam bewoner (optioneel)</label>
+        <input type="text" id="naam-inp-scan" placeholder="bijv. Familie Jansen"
+          value="${esc(naam)}"
+          style="font-size:16px;padding:11px 14px;width:100%;background:#f4f7fa;border:2px solid var(--border);border-radius:10px;color:var(--text)">
+      </div>
+
+      <div class="shdr">Type meting</div>
+      <div class="type-grid">`;
+
+    Object.entries(TYPES).forEach(([t, info]) => {
+      html += `<button class="type-btn ${t}${selType===t?' sel':''}" data-type="${t}">
+        <span class="type-icon">${info.icon}</span>${info.label}
+      </button>`;
+    });
+    html += `</div>`;
+
+    if (selType) {
+      const info = TYPES[selType];
+      const isKast = selType === 'kast';
+      const kanOpslaan = isKast ? !!foto : !!stand;
+
+      html += `<div class="card card-p">`;
+
+      if (!isKast) {
+        html += `<div class="fg">
+          <label class="lbl">Stand (${info.een})</label>
+          <input type="number" id="stand-inp" placeholder="0" value="${esc(stand)}" inputmode="decimal" step="0.001">
+        </div>`;
+      }
+
+      if (isKast) {
+        html += `<div class="fg">
+          <label class="lbl">Tekst / opmerking (optioneel)</label>
+          <textarea id="notitie-inp" placeholder="bijv. lekkage, kapotte aansluiting…"
+            rows="3" style="width:100%;padding:12px 14px;background:#f4f7fa;border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;resize:none;font-family:inherit">${esc(notitie)}</textarea>
+        </div>`;
+      }
+
+      html += `<div class="fg">
+        <label class="lbl">Foto ${isKast ? '— verplicht' : '— optioneel'}</label>
+        <div style="display:flex;gap:8px;margin-bottom:${foto?'8px':'0'}">
+          <label class="foto-btn" for="foto-cam" style="flex:1">📷 Camera</label>
+          <label class="foto-btn" for="foto-gal" style="flex:1">🖼️ Galerij</label>
+        </div>
+        <input type="file" id="foto-cam" accept="image/*" capture="environment" style="display:none">
+        <input type="file" id="foto-gal" accept="image/*" style="display:none">
+        ${foto ? `<div class="foto-wrap">
+          <img src="${foto}" class="foto-preview">
+          <button class="foto-edit" id="edit-foto" type="button">✏️</button>
+          <button class="foto-del" id="del-foto" type="button">✕</button>
+        </div>` : ''}
+      </div>
+
+      <button class="btn btn-p" id="save-btn" ${kanOpslaan?'':'disabled'}>
+        ✅ Opslaan — ${esc(selAdres)}${getNaam(selAdres) ? ' ('+esc(getNaam(selAdres))+')' : ''}
+      </button></div>`;
+
+      const recente = metingen
+        .filter(m => m.adres === selAdres && m.type === selType)
+        .sort((a,b) => b.id - a.id).slice(0,3);
+      if (recente.length) {
+        html += `<div class="shdr">Recent — ${esc(selAdres)}</div><div class="card">`;
+        recente.forEach(m => html += miHtml(m));
+        html += `</div>`;
+      }
+    }
+    return html;
+  }
+
+  // ── Geen adres geselecteerd: toon zoeklijst ──
+  const lijst = getAdressen().filter(a => !zoek || a.toLowerCase().includes(zoek.toLowerCase()));
+  let html = `<input class="sbox" id="zoek" placeholder="🔍 Zoek adres…" value="${esc(zoek)}"><div class="card">`;
+  if (!lijst.length) {
+    html += `<div class="leeg">Geen adressen gevonden</div>`;
+  } else {
+    lijst.forEach(a => {
+      const cnt  = telPerAdres[a];
+      const naam = getNaam(a);
+      html += `<div class="al-item" data-adres="${esc(a)}">
+        <div style="min-width:0">
+          <div>${esc(a)}</div>
+          ${naam ? `<div style="font-size:12px;color:var(--muted);margin-top:1px">${esc(naam)}</div>` : ''}
+        </div>
+        ${cnt ? `<span class="cnt">${cnt}</span>` : ''}
+      </div>`;
+    });
+  }
+  html += `</div>`;
+  return html;
+}
+
+// ─────────────────────────────────────────────────
+// RAPPORT TAB
+// ─────────────────────────────────────────────────
+function renderRapport() {
+  const datums = [...new Set(metingen.map(m => m.datum))].sort().reverse();
+  if (!datums.includes(selDatum)) selDatum = datums[0] || vandaag();
+
+  const gefilt = metingen.filter(m => m.datum === selDatum)
+    .sort((a,b) => a.adres.localeCompare(b.adres,'nl') || a.type.localeCompare(b.type));
+
+  const perAdres = {};
+  gefilt.forEach(m => { (perAdres[m.adres] = perAdres[m.adres]||[]).push(m); });
+
+  let html = `<div style="display:flex;gap:8px;margin-bottom:14px">
+    <select id="datum-sel" style="flex:1">
+      ${datums.length ? datums.map(d => `<option value="${d}"${d===selDatum?' selected':''}>${d}</option>`).join('') : `<option>${vandaag()}</option>`}
+    </select>
+    <button onclick="exportPDF()" style="padding:11px 14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;white-space:nowrap">📄 PDF</button>
+    <button onclick="deelRapport()" style="padding:11px 14px;background:#1a8a3c;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;white-space:nowrap">📤 Delen</button>
+  </div>`;
+
+  if (!gefilt.length) {
+    return html + `<div class="leeg">📋 Geen metingen voor ${selDatum}</div>`;
+  }
+
+  Object.entries(perAdres).sort(([a],[b]) => a.localeCompare(b,'nl')).forEach(([adres, lijst]) => {
+    const naam = getNaam(adres);
+    html += `<div class="card"><div class="rp-hdr">${esc(adres)}${naam ? `<span style="font-weight:400;opacity:.75"> — ${esc(naam)}</span>` : ''}</div>`;
+    lijst.forEach(m => html += miHtml(m));
+    html += `</div>`;
+  });
+  return html;
+}
+
+// ─────────────────────────────────────────────────
+// BEHEER TAB
+// ─────────────────────────────────────────────────
+function renderBeheer() {
+  const adressen = getAdressen();
+  const extra    = JSON.parse(localStorage.getItem('ms_extra') || '[]');
+  const weg      = JSON.parse(localStorage.getItem('ms_weg')   || '[]');
+
+  // Storage estimate
+  const totaalFotos = metingen.filter(m=>m.foto).length;
+  const grootKB = Math.round(metingen.reduce((s,m)=> s + (m.foto ? m.foto.length * 3/4/1024 : 0), 0));
+
+  return `
+    <div class="strip">📱 Alles staat op je telefoon opgeslagen. Geen internet nodig.</div>
+
+    <div class="shdr">Adres toevoegen</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input type="text" id="nieuw-adres" placeholder="bijv. Eikenlaan 15" style="flex:1;font-size:16px;padding:12px">
+      <button id="voeg-toe-btn" style="padding:12px 18px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:18px">+</button>
+    </div>
+
+    <div class="shdr">Adressen (${adressen.length})</div>
+    <div class="card">
+    ${adressen.map(a => {
+      const naam = getNaam(a);
+      return `<div class="bh-row" style="flex-direction:column;align-items:stretch;gap:6px;padding-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="flex:1;font-size:14px;font-weight:600">${esc(a)}</span>
+          <button class="bh-del" data-del-adres="${esc(a)}" title="Verwijder">🗑️</button>
+        </div>
+        <input type="text" class="naam-inp" data-naam-adres="${esc(a)}"
+          placeholder="Naam bewoner (optioneel)"
+          value="${esc(naam)}"
+          style="padding:9px 12px;background:#f4f7fa;border:2px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;width:100%">
+      </div>`;
+    }).join('')}
+    </div>
+
+    <div class="shdr">Opslag</div>
+    <div class="card card-p">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.6">
+        ${metingen.length} metingen · ${totaalFotos} foto's · ≈ ${grootKB} KB
+      </p>
+      <button class="btn btn-d" id="wis-btn">🗑️ Alle metingen wissen</button>
+    </div>
+
+    ${weg.length ? `<div class="shdr">Verwijderde adressen</div><div class="card">
+    ${weg.map(a => `<div class="bh-row">
+      <span style="color:var(--muted)">${esc(a)}</span>
+      <button onclick="herstelAdres('${esc(a)}')" style="margin-left:auto;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700">Herstel</button>
+    </div>`).join('')}
+    </div>` : ''}
+  `;
+}
+
+// ─────────────────────────────────────────────────
+// METING ITEM HTML
+// ─────────────────────────────────────────────────
+function miHtml(m) {
+  const info = TYPES[m.type] || { label:m.type, icon:'📊', een:'', kleur:'#888' };
+  const standTxt = m.type === 'kast' ? 'Foto kast' : `${m.stand} ${info.een}`;
+  return `<div class="mi">
+    <div class="mi-bar" style="background:${info.kleur}"></div>
+    <div class="mi-info">
+      <div class="mi-stand">${info.icon} ${esc(standTxt)}</div>
+      <div class="mi-meta">${info.label} · ${m.tijd || '—'}</div>
+      ${m.notitie ? `<div style="font-size:13px;color:var(--muted);margin-top:4px;font-style:italic">${esc(m.notitie)}</div>` : ''}
+    </div>
+    ${m.foto ? `<img src="${m.foto}" class="mi-thumb" data-lightbox-id="${m.id}">` : '<span style="width:54px"></span>'}
+    <button class="mi-del" data-del-id="${m.id}" title="Verwijder">🗑️</button>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════
+// BIND EVENTS — na elke render
+// ══════════════════════════════════════════════════
+function bindAll() {
+  // Terug naar adressenlijst
+  const terugBtn = document.getElementById('terug-btn');
+  if (terugBtn) terugBtn.onclick = () => { selAdres = null; selType = null; stand = ''; foto = null; notitie = ''; render(); };
+
+  // Naam invullen in scan-tab
+  const naamScan = document.getElementById('naam-inp-scan');
+  if (naamScan) {
+    naamScan.addEventListener('change', () => {
+      setNaam(selAdres, naamScan.value.trim());
+      render();
+    });
+    naamScan.addEventListener('input', () => setNaam(selAdres, naamScan.value.trim()));
+  }
+
+  // Zoeken
+  const zoekEl = document.getElementById('zoek');
+  if (zoekEl) zoekEl.oninput = e => {
+    zoek = e.target.value;
+    render().then(() => {
+      const z = document.getElementById('zoek');
+      if (z) { z.focus(); z.setSelectionRange(z.value.length, z.value.length); }
+    });
+  };
+
+  // Adres klikken
+  document.querySelectorAll('.al-item[data-adres]').forEach(el => {
+    el.addEventListener('click', () => {
+      const a = el.dataset.adres;
+      selAdres = selAdres === a ? null : a;
+      selType = null; stand = ''; foto = null; notitie = '';
+      render();
+      if (selAdres) setTimeout(() => el.scrollIntoView({ block:'nearest', behavior:'smooth' }), 60);
+    });
+  });
+
+  // Type klikken
+  document.querySelectorAll('.type-btn[data-type]').forEach(el => {
+    el.addEventListener('click', () => {
+      const t = el.dataset.type;
+      selType = selType === t ? null : t;
+      stand = ''; foto = null; notitie = '';
+      render();
+      setTimeout(() => document.getElementById('stand-inp')?.focus(), 80);
+    });
+  });
+
+  // Stand invoer
+  const standEl = document.getElementById('stand-inp');
+  if (standEl) standEl.oninput = e => {
+    stand = e.target.value;
+    const btn = document.getElementById('save-btn');
+    if (btn) btn.disabled = !stand;
+  };
+
+  // Foto — camera of galerij
+  async function verwerkFoto(e) {
+    if (!e.target.files[0]) return;
+    toast('⏳ Foto comprimeren…');
+    foto = await compressFoto(e.target.files[0]);
+    render();
+    toast('📷 Foto klaar');
+  }
+  const fotoCam = document.getElementById('foto-cam');
+  const fotoGal = document.getElementById('foto-gal');
+  if (fotoCam) fotoCam.onchange = verwerkFoto;
+  if (fotoGal) fotoGal.onchange = verwerkFoto;
+
+  // Notitie (kast)
+  const notitieInp = document.getElementById('notitie-inp');
+  if (notitieInp) notitieInp.oninput = e => { notitie = e.target.value; };
+
+  // Foto verwijderen
+  const delFoto = document.getElementById('del-foto');
+  if (delFoto) delFoto.onclick = () => { foto = null; render(); };
+
+  // Foto bewerken
+  const editFoto = document.getElementById('edit-foto');
+  if (editFoto) editFoto.onclick = () => edOpen(foto, nieuw => { foto = nieuw; render(); });
+
+  // Opslaan
+  const saveBtn = document.getElementById('save-btn');
+  if (saveBtn) saveBtn.onclick = opslaan;
+
+  // Datum select
+  const datumSel = document.getElementById('datum-sel');
+  if (datumSel) datumSel.onchange = e => { selDatum = e.target.value; render(); };
+
+  // Meting verwijderen
+  document.querySelectorAll('[data-del-id]').forEach(el => {
+    el.onclick = () => verwijderMeting(Number(el.dataset.delId));
+  });
+
+  // Lightbox
+  document.querySelectorAll('[data-lightbox-id]').forEach(el => {
+    el.onclick = () => openLightbox(Number(el.dataset.lightboxId));
+  });
+
+  // Beheer: adres verwijderen
+  document.querySelectorAll('[data-del-adres]').forEach(el => {
+    el.onclick = () => verwijderAdres(el.dataset.delAdres);
+  });
+
+  // Beheer: adres toevoegen
+  const voegBtn = document.getElementById('voeg-toe-btn');
+  if (voegBtn) voegBtn.onclick = voegAdresToe;
+  const nieuwEl = document.getElementById('nieuw-adres');
+  if (nieuwEl) nieuwEl.onkeydown = e => { if (e.key === 'Enter') voegAdresToe(); };
+
+  // Naam per adres opslaan
+  document.querySelectorAll('.naam-inp[data-naam-adres]').forEach(el => {
+    el.addEventListener('change', () => setNaam(el.dataset.naamAdres, el.value.trim()));
+  });
+
+  // Wis alles
+  const wisBtn = document.getElementById('wis-btn');
+  if (wisBtn) wisBtn.onclick = wisAlles;
+}
+
+// ══════════════════════════════════════════════════
+// ACTIONS
+// ══════════════════════════════════════════════════
+async function opslaan() {
+  if (!selAdres || !selType) return;
+  const isKast = selType === 'kast';
+  if (!isKast && !stand) return;
+  if (isKast && !foto) return;
+
+  const m = {
+    id:     Date.now(),
+    datum:  vandaag(),
+    tijd:   nu(),
+    adres:  selAdres,
+    type:   selType,
+    stand:  stand,
+    eenheid: TYPES[selType]?.een || '',
+    foto:   foto,
+    notitie: notitie
+  };
+
+  await dbPut(m);
+  stand = ''; foto = null; notitie = ''; selType = null;
+  toast('✅ Opgeslagen!');
+  render();
+}
+
+async function verwijderMeting(id) {
+  if (!confirm('Meting verwijderen?')) return;
+  await dbDel(id);
+  toast('🗑️ Verwijderd');
+  render();
+}
+
+function voegAdresToe() {
+  const inp = document.getElementById('nieuw-adres');
+  const a = inp?.value?.trim();
+  if (!a) return;
+  const extra = JSON.parse(localStorage.getItem('ms_extra') || '[]');
+  const weg   = JSON.parse(localStorage.getItem('ms_weg')   || '[]');
+  if (!extra.includes(a) && !STANDAARD.includes(a)) extra.push(a);
+  // Herstel als verwijderd
+  const wi = weg.indexOf(a);
+  if (wi >= 0) { weg.splice(wi,1); localStorage.setItem('ms_weg', JSON.stringify(weg)); }
+  localStorage.setItem('ms_extra', JSON.stringify(extra));
+  toast(`✅ ${a} toegevoegd`);
+  if (inp) inp.value = '';
+  render();
+}
+
+function verwijderAdres(a) {
+  if (!confirm(`"${a}" verwijderen uit de lijst?\n\nBestaaande metingen blijven bewaard.`)) return;
+  const weg   = JSON.parse(localStorage.getItem('ms_weg')   || '[]');
+  const extra = JSON.parse(localStorage.getItem('ms_extra') || '[]');
+  if (!weg.includes(a)) weg.push(a);
+  const ei = extra.indexOf(a); if (ei >= 0) extra.splice(ei,1);
+  localStorage.setItem('ms_weg',   JSON.stringify(weg));
+  localStorage.setItem('ms_extra', JSON.stringify(extra));
+  if (selAdres === a) { selAdres = null; selType = null; }
+  toast(`🗑️ ${a} verwijderd`);
+  render();
+}
+
+function herstelAdres(a) {
+  const weg = JSON.parse(localStorage.getItem('ms_weg') || '[]');
+  const i = weg.indexOf(a); if (i >= 0) weg.splice(i,1);
+  localStorage.setItem('ms_weg', JSON.stringify(weg));
+  render();
+}
+
+async function wisAlles() {
+  if (!confirm('Alle metingen en foto\'s permanent verwijderen?\n\nDit kan niet ongedaan worden gemaakt!')) return;
+  await dbClear();
+  toast('🗑️ Alles gewist');
+  render();
+}
+
+// ══════════════════════════════════════════════════
+// LIGHTBOX
+// ══════════════════════════════════════════════════
+function openLightbox(id) {
+  const m = metingen.find(x => x.id === id);
+  if (!m?.foto) return;
+  document.getElementById('lightbox-img').src = m.foto;
+  document.getElementById('lightbox').classList.add('open');
+}
+function sluitLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════
+// PDF EXPORT — echte PDF downloaden via jsPDF
+// ══════════════════════════════════════════════════
+function hexToRgb(hex) {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return r ? [parseInt(r[1],16), parseInt(r[2],16), parseInt(r[3],16)] : [128,128,128];
+}
+
+async function laadJsPDF() {
+  if (window.jspdf) return true;
+  return new Promise((res) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = () => res(true);
+    s.onerror = () => res(false);
+    document.head.appendChild(s);
+  });
+}
+
+async function maakPDFDoc() {
+  const datum = selDatum;
+  const gefilt = metingen.filter(m => m.datum === datum)
+    .sort((a,b) => a.adres.localeCompare(b.adres,'nl') || a.type.localeCompare(b.type));
+
+  if (!gefilt.length) { toast('Geen metingen voor ' + datum); return null; }
+
+  toast('⏳ PDF aanmaken…');
+
+  const geladen = await laadJsPDF();
+  if (!geladen) {
+    toast('❌ Geen internet voor PDF — probeer opnieuw');
+    return null;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+  const ML = 14, MR = 14, MT = 14;
+  const PW = 210, PH = 297;
+  const CW = PW - ML - MR;
+  let y = MT;
+
+  const checkPB = (need) => {
+    if (y + need > PH - 14) { doc.addPage(); y = MT; }
+  };
+
+  // Titel
+  doc.setFontSize(18); doc.setFont('helvetica','bold');
+  doc.setTextColor(26, 82, 118);
+  doc.text('Meterstanden Camping', ML, y); y += 7;
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.setTextColor(120,120,120);
+  doc.text(datum + '  ·  ' + gefilt.length + ' metingen', ML, y); y += 4;
+  doc.setDrawColor(26,82,118); doc.setLineWidth(0.4);
+  doc.line(ML, y, ML+CW, y); y += 8;
+
+  const perAdres = {};
+  gefilt.forEach(m => { (perAdres[m.adres] = perAdres[m.adres]||[]).push(m); });
+
+  for (const [adres, lijst] of Object.entries(perAdres).sort(([a],[b]) => a.localeCompare(b,'nl'))) {
+    checkPB(22);
+
+    // Adres header
+    const naam = getNaam(adres);
+    const hdrTxt = naam ? `${adres}  —  ${naam}` : adres;
+    doc.setFillColor(26,82,118);
+    doc.roundedRect(ML, y, CW, 9, 1.5, 1.5, 'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(10); doc.setFont('helvetica','bold');
+    doc.text(hdrTxt, ML+4, y+6.2);
+    y += 13;
+
+    for (const m of lijst) {
+      const info = TYPES[m.type] || { label:m.type, icon:'', een:'', kleur:'#888888' };
+      const standTxt = m.type === 'kast' ? 'Foto kast' : `${m.stand} ${info.een}`;
+      const heeftFoto = !!m.foto;
+      const heeftNotitie = !!(m.notitie && m.type === 'kast');
+      const rH = (heeftFoto ? 26 : 14) + (heeftNotitie ? 8 : 0);
+
+      checkPB(rH + 3);
+
+      // Rij achtergrond
+      doc.setFillColor(245,247,250);
+      doc.roundedRect(ML, y, CW, rH, 1, 1, 'F');
+
+      // Kleur balk
+      const [r,g,b] = hexToRgb(info.kleur);
+      doc.setFillColor(r,g,b);
+      doc.roundedRect(ML, y, 3.5, rH, 0.5, 0.5, 'F');
+
+      // Stand tekst
+      doc.setTextColor(20,20,20); doc.setFontSize(12); doc.setFont('helvetica','bold');
+      doc.text(standTxt, ML+7, y+6.5);
+      doc.setFontSize(9); doc.setFont('helvetica','normal');
+      doc.setTextColor(130,130,130);
+      doc.text(`${info.label}  ·  ${m.tijd||'—'}`, ML+7, y+12);
+      if (heeftNotitie) {
+        doc.setFontSize(8); doc.setFont('helvetica','italic');
+        doc.setTextColor(80,80,80);
+        const nLines = doc.splitTextToSize(m.notitie, CW - 14);
+        doc.text(nLines[0], ML+7, y+19);
+      }
+
+      // Foto thumbnail
+      if (heeftFoto) {
+        try {
+          const fW = 32, fH = 22;
+          doc.addImage(m.foto, 'JPEG', ML+CW-fW-2, y+2, fW, fH, undefined, 'FAST');
+        } catch(e) { /* foto overslaan */ }
+      }
+
+      y += rH + 3;
+    }
+    y += 4;
+  }
+
+  // Voettekst op elke pagina
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7); doc.setTextColor(190,190,190);
+    doc.text(`MeterScan Pro  ·  ${datum}  ·  Pagina ${i} van ${pages}`, ML, PH-7);
+  }
+
+  return { doc, datum };
+}
+
+async function exportPDF() {
+  const res = await maakPDFDoc();
+  if (!res) return;
+  const { doc, datum } = res;
+  const bestandsnaam = `meterstanden_${datum}.pdf`;
+
+  // Op iPhone werkt een normale download niet — gebruik share sheet of nieuw tabblad
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS) {
+    try {
+      const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+      const file = new File([blob], bestandsnaam, { type: 'application/pdf' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Meterstanden ${datum}` });
+        toast('✅ Gedeeld!');
+      } else {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        toast('📄 Tik op □↑ in Safari om te delen');
+      }
+      return;
+    } catch(e) { if (e.name === 'AbortError') return; }
+  }
+
+  doc.save(bestandsnaam);
+  toast('✅ PDF opgeslagen in downloads!');
+}
+
+async function deelRapport() {
+  const res = await maakPDFDoc();
+  if (!res) return;
+  const { doc, datum } = res;
+  const bestandsnaam = `meterstanden_${datum}.pdf`;
+
+  try {
+    const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+    const file = new File([blob], bestandsnaam, { type: 'application/pdf' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: `Meterstanden ${datum}` });
+      toast('✅ Gedeeld!');
+    } else {
+      // Fallback: open PDF in nieuw tabblad — tik daar op □↑ om te delen
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      toast('📄 Tik op □↑ in Safari om te delen');
+    }
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      toast('📄 Tik op □↑ in Safari om te delen');
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════
+// FOTO EDITOR — draaien + uitsnijden
+// ══════════════════════════════════════════════════
+const ED = {
+  img: null,
+  rot: 0,            // 0 | 90 | 180 | 270
+  crop: null,        // {x1,y1,x2,y2} genormaliseerd 0-1 op het gedraaide beeld
+  dragging: null,    // 'tl'|'tr'|'bl'|'br'|'move'|null
+  dragStart: null,   // {x,y} canvas px
+  cropSnap: null,    // crop bij start van drag
+  canvas: null,
+  ctx: null,
+  disp: null,        // {x,y,w,h} positie van het gedraaide beeld op de canvas
+  callback: null,
+  bound: false
+};
+
+function edOpen(dataUrl, cb) {
+  ED.callback = cb;
+  ED.rot = 0;
+  ED.crop = { x1:0.04, y1:0.04, x2:0.96, y2:0.96 };
+  ED.dragging = null;
+  const img = new Image();
+  img.onload = () => {
+    ED.img = img;
+    ED.canvas = document.getElementById('ed-canvas');
+    ED.ctx = ED.canvas.getContext('2d');
+    document.getElementById('ed-modal').style.display = 'flex';
+    edBindOnce();
+    edResize();
+    edDraw();
+  };
+  img.src = dataUrl;
+}
+
+function edClose() {
+  document.getElementById('ed-modal').style.display = 'none';
+  ED.img = null;
+}
+
+function edResize() {
+  if (!ED.canvas) return;
+  const modal = document.getElementById('ed-modal');
+  const toolbar = document.getElementById('ed-toolbar');
+  const hint = document.getElementById('ed-hint');
+  const W = window.innerWidth;
+  const H = window.innerHeight - toolbar.offsetHeight - hint.offsetHeight;
+  ED.canvas.width  = W;
+  ED.canvas.height = Math.max(H, 200);
+  edCalcDisp();
+}
+
+function edCalcDisp() {
+  if (!ED.img || !ED.canvas) return;
+  const rot = ED.rot;
+  const rotated = (rot === 90 || rot === 270);
+  const iw = rotated ? ED.img.naturalHeight : ED.img.naturalWidth;
+  const ih = rotated ? ED.img.naturalWidth  : ED.img.naturalHeight;
+  const PAD = 16;
+  const cw = ED.canvas.width  - 2*PAD;
+  const ch = ED.canvas.height - 2*PAD;
+  const scale = Math.min(cw/iw, ch/ih);
+  const dw = iw * scale, dh = ih * scale;
+  ED.disp = {
+    x: (ED.canvas.width  - dw) / 2,
+    y: (ED.canvas.height - dh) / 2,
+    w: dw, h: dh
+  };
+}
+
+function edDraw() {
+  if (!ED.canvas || !ED.img) return;
+  const ctx = ED.ctx;
+  const c   = ED.canvas;
+  const d   = ED.disp;
+  const cr  = ED.crop;
+
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  // Teken gedraaid beeld
+  edDrawImg(ctx, d);
+
+  // Crop coördinaten in canvas pixels
+  const cx1 = d.x + cr.x1 * d.w;
+  const cy1 = d.y + cr.y1 * d.h;
+  const cx2 = d.x + cr.x2 * d.w;
+  const cy2 = d.y + cr.y2 * d.h;
+
+  // Donker masker rondom crop
+  ctx.fillStyle = 'rgba(0,0,0,0.58)';
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  // Crop venster: herteiken beeld alleen in crop gebied (schoon)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cx1, cy1, cx2-cx1, cy2-cy1);
+  ctx.clip();
+  edDrawImg(ctx, d);
+  ctx.restore();
+
+  // Crop rand
+  ctx.strokeStyle = '#00e5a0';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cx1, cy1, cx2-cx1, cy2-cy1);
+
+  // Derden-regel lijnen
+  const rcw = cx2-cx1, rch = cy2-cy1;
+  ctx.strokeStyle = 'rgba(0,229,160,0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i=1; i<=2; i++) {
+    ctx.moveTo(cx1 + rcw*i/3, cy1); ctx.lineTo(cx1 + rcw*i/3, cy2);
+    ctx.moveTo(cx1, cy1 + rch*i/3); ctx.lineTo(cx2, cy1 + rch*i/3);
+  }
+  ctx.stroke();
+
+  // Hoekhandvatten
+  const HS = 14;
+  ctx.fillStyle = '#00e5a0';
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 4;
+  [[cx1,cy1],[cx2,cy1],[cx1,cy2],[cx2,cy2]].forEach(([hx,hy]) => {
+    ctx.fillRect(hx-HS/2, hy-HS/2, HS, HS);
+  });
+  ctx.shadowBlur = 0;
+}
+
+function edDrawImg(ctx, d) {
+  const img = ED.img;
+  const rot = ED.rot;
+  ctx.save();
+  ctx.translate(d.x + d.w/2, d.y + d.h/2);
+  ctx.rotate(rot * Math.PI / 180);
+  const rotated = (rot === 90 || rot === 270);
+  const sw = rotated ? d.h : d.w;
+  const sh = rotated ? d.w : d.h;
+  ctx.drawImage(img, -sw/2, -sh/2, sw, sh);
+  ctx.restore();
+}
+
+function edHitTest(x, y) {
+  const d  = ED.disp;
+  const cr = ED.crop;
+  const cx1 = d.x + cr.x1 * d.w;
+  const cy1 = d.y + cr.y1 * d.h;
+  const cx2 = d.x + cr.x2 * d.w;
+  const cy2 = d.y + cr.y2 * d.h;
+  const HS = 28; // aanraakgebied hoeken
+
+  if (Math.abs(x-cx1)<HS && Math.abs(y-cy1)<HS) return 'tl';
+  if (Math.abs(x-cx2)<HS && Math.abs(y-cy1)<HS) return 'tr';
+  if (Math.abs(x-cx1)<HS && Math.abs(y-cy2)<HS) return 'bl';
+  if (Math.abs(x-cx2)<HS && Math.abs(y-cy2)<HS) return 'br';
+  if (x>cx1 && x<cx2 && y>cy1 && y<cy2)         return 'move';
+  return null;
+}
+
+function edGetXY(e) {
+  const rect = ED.canvas.getBoundingClientRect();
+  const sx = ED.canvas.width  / rect.width;
+  const sy = ED.canvas.height / rect.height;
+  const src = e.touches ? (e.touches[0] || e.changedTouches[0]) : e;
+  return { x: (src.clientX - rect.left)*sx, y: (src.clientY - rect.top)*sy };
+}
+
+function edDown(e) {
+  e.preventDefault();
+  const p = edGetXY(e);
+  const hit = edHitTest(p.x, p.y);
+  if (!hit) return;
+  ED.dragging  = hit;
+  ED.dragStart = p;
+  ED.cropSnap  = { ...ED.crop };
+}
+
+function edMove(e) {
+  e.preventDefault();
+  if (!ED.dragging) return;
+  const p  = edGetXY(e);
+  const dx = (p.x - ED.dragStart.x) / ED.disp.w;
+  const dy = (p.y - ED.dragStart.y) / ED.disp.h;
+  const MIN = 0.08;
+  let {x1,y1,x2,y2} = ED.cropSnap;
+
+  if      (ED.dragging==='tl') { x1=Math.min(x1+dx,x2-MIN); y1=Math.min(y1+dy,y2-MIN); }
+  else if (ED.dragging==='tr') { x2=Math.max(x2+dx,x1+MIN); y1=Math.min(y1+dy,y2-MIN); }
+  else if (ED.dragging==='bl') { x1=Math.min(x1+dx,x2-MIN); y2=Math.max(y2+dy,y1+MIN); }
+  else if (ED.dragging==='br') { x2=Math.max(x2+dx,x1+MIN); y2=Math.max(y2+dy,y1+MIN); }
+  else if (ED.dragging==='move') {
+    const mw=x2-x1, mh=y2-y1;
+    x1 = Math.max(0, Math.min(1-mw, x1+dx));
+    y1 = Math.max(0, Math.min(1-mh, y1+dy));
+    x2=x1+mw; y2=y1+mh;
+  }
+
+  ED.crop = {
+    x1: Math.max(0, Math.min(1, x1)),
+    y1: Math.max(0, Math.min(1, y1)),
+    x2: Math.max(0, Math.min(1, x2)),
+    y2: Math.max(0, Math.min(1, y2))
+  };
+  edDraw();
+}
+
+function edUp(e) { ED.dragging = null; }
+
+function edBindOnce() {
+  if (ED.bound) return;
+  ED.bound = true;
+  const c = document.getElementById('ed-canvas');
+  c.addEventListener('mousedown',  edDown, { passive:false });
+  c.addEventListener('mousemove',  edMove, { passive:false });
+  c.addEventListener('mouseup',    edUp);
+  c.addEventListener('touchstart', edDown, { passive:false });
+  c.addEventListener('touchmove',  edMove, { passive:false });
+  c.addEventListener('touchend',   edUp);
+  window.addEventListener('resize', () => { edResize(); edDraw(); });
+
+  document.getElementById('ed-rot-l').onclick  = () => edRoteer(-90);
+  document.getElementById('ed-rot-r').onclick  = () => edRoteer(90);
+  document.getElementById('ed-reset').onclick  = () => { ED.crop={x1:.04,y1:.04,x2:.96,y2:.96}; edDraw(); };
+  document.getElementById('ed-annul').onclick  = edClose;
+  document.getElementById('ed-apply').onclick  = edToepassen;
+}
+
+function edRoteer(deg) {
+  ED.rot = ((ED.rot + deg) + 360) % 360;
+  ED.crop = { x1:0.04, y1:0.04, x2:0.96, y2:0.96 };
+  edCalcDisp();
+  edDraw();
+}
+
+async function edToepassen() {
+  const img = ED.img;
+  const rot = ED.rot;
+  const cr  = ED.crop;
+
+  // Stap 1: draai origineel beeld
+  const rotated = (rot === 90 || rot === 270);
+  const rw = rotated ? img.naturalHeight : img.naturalWidth;
+  const rh = rotated ? img.naturalWidth  : img.naturalHeight;
+
+  const rc = document.createElement('canvas');
+  rc.width = rw; rc.height = rh;
+  const rx = rc.getContext('2d');
+  rx.translate(rw/2, rh/2);
+  rx.rotate(rot * Math.PI / 180);
+  rx.drawImage(img, -img.naturalWidth/2, -img.naturalHeight/2);
+
+  // Stap 2: uitsnijden
+  const cropX = Math.round(cr.x1 * rw);
+  const cropY = Math.round(cr.y1 * rh);
+  const cropW = Math.max(1, Math.round((cr.x2-cr.x1)*rw));
+  const cropH = Math.max(1, Math.round((cr.y2-cr.y1)*rh));
+
+  // Stap 3: schaal naar max 800px
+  const MAX = 800;
+  const sc  = Math.min(1, MAX / Math.max(cropW, cropH));
+  const oc  = document.createElement('canvas');
+  oc.width  = Math.round(cropW*sc);
+  oc.height = Math.round(cropH*sc);
+  oc.getContext('2d').drawImage(rc, cropX, cropY, cropW, cropH, 0, 0, oc.width, oc.height);
+
+  const result = oc.toDataURL('image/jpeg', 0.5);
+  edClose();
+  ED.callback(result);
+}
+
+// ══════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════
+let _toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.style.opacity = '0', 2200);
+}
+
+// ══════════════════════════════════════════════════
+// START
+// ══════════════════════════════════════════════════
+render();
+</script>
+</body>
+</html>
