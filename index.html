@@ -398,13 +398,11 @@ function renderScan() {
         </div>`;
       }
 
-      if (isKast) {
-        html += `<div class="fg">
-          <label class="lbl">Tekst / opmerking (optioneel)</label>
-          <textarea id="notitie-inp" placeholder="bijv. lekkage, kapotte aansluiting…"
-            rows="3" style="width:100%;padding:12px 14px;background:#f4f7fa;border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;resize:none;font-family:inherit">${esc(notitie)}</textarea>
-        </div>`;
-      }
+      html += `<div class="fg">
+        <label class="lbl">Notitie (optioneel)</label>
+        <textarea id="notitie-inp" placeholder="bijv. lekkage, kapotte aansluiting…"
+          rows="2" style="width:100%;padding:12px 14px;background:#f4f7fa;border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;resize:none;font-family:inherit">${esc(notitie)}</textarea>
+      </div>`;
 
       html += `<div class="fg">
         <label class="lbl">Foto ${isKast ? '— verplicht' : '— optioneel'}</label>
@@ -637,7 +635,7 @@ function bindAll() {
   if (fotoCam) fotoCam.onchange = verwerkFoto;
   if (fotoGal) fotoGal.onchange = verwerkFoto;
 
-  // Notitie (kast)
+  // Notitie
   const notitieInp = document.getElementById('notitie-inp');
   if (notitieInp) notitieInp.oninput = e => { notitie = e.target.value; };
 
@@ -797,6 +795,15 @@ async function laadJsPDF() {
   });
 }
 
+function getImgDims(src) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve({ w: 4, h: 3 });
+    img.src = src;
+  });
+}
+
 async function maakPDFDoc() {
   const datum = selDatum;
   const gefilt = metingen.filter(m => m.datum === datum)
@@ -853,8 +860,16 @@ async function maakPDFDoc() {
       const info = TYPES[m.type] || { label:m.type, icon:'', een:'', kleur:'#888888' };
       const standTxt = m.type === 'kast' ? 'Foto kast' : `${m.stand} ${info.een}`;
       const heeftFoto = !!m.foto;
-      const heeftNotitie = !!(m.notitie && m.type === 'kast');
-      const rH = (heeftFoto ? 26 : 14) + (heeftNotitie ? 8 : 0);
+      const heeftNotitie = !!m.notitie;
+
+      // Bereken fotogrootte op basis van echte verhouding
+      const fW = 32;
+      let fH = 0;
+      if (heeftFoto) {
+        const dims = await getImgDims(m.foto);
+        fH = Math.round(fW * dims.h / dims.w);
+      }
+      const rH = (heeftFoto ? Math.max(16, fH + 4) : 14) + (heeftNotitie ? 8 : 0);
 
       checkPB(rH + 3);
 
@@ -880,10 +895,9 @@ async function maakPDFDoc() {
         doc.text(nLines[0], ML+7, y+19);
       }
 
-      // Foto thumbnail
+      // Foto thumbnail — juiste verhouding
       if (heeftFoto) {
         try {
-          const fW = 32, fH = 22;
           doc.addImage(m.foto, 'JPEG', ML+CW-fW-2, y+2, fW, fH, undefined, 'FAST');
         } catch(e) { /* foto overslaan */ }
       }
