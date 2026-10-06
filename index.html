@@ -484,12 +484,14 @@ function renderRapport() {
   const perAdres = {};
   gefilt.forEach(m => { (perAdres[m.adres] = perAdres[m.adres]||[]).push(m); });
 
-  let html = `<div style="display:flex;gap:8px;margin-bottom:10px">
-    <select id="datum-sel" style="flex:1">
+  let html = `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <select id="datum-sel" style="flex:1;min-width:100px">
       ${datums.length ? datums.map(d => `<option value="${d}"${d===selDatum?' selected':''}>${d}</option>`).join('') : `<option>${vandaag()}</option>`}
     </select>
     <button onclick="exportPDF()" style="padding:11px 14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;white-space:nowrap">📄 PDF</button>
     <button onclick="deelRapport()" style="padding:11px 14px;background:#1a8a3c;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;white-space:nowrap">📤 Delen</button>
+    <button onclick="exportExcel()" style="padding:11px 14px;background:#217346;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;white-space:nowrap">📊 Excel</button>
+    <button onclick="downloadFotos()" style="padding:11px 14px;background:#7a4500;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;white-space:nowrap">📷 Foto's</button>
   </div>`;
 
   // Straat-filter dropdown — alleen tonen als er meerdere straten zijn
@@ -1010,6 +1012,187 @@ async function deelRapport() {
       toast('📄 Tik op □↑ in Safari om te delen');
     }
   }
+}
+
+// ══════════════════════════════════════════════════
+// EXCEL EXPORT via SheetJS
+// ══════════════════════════════════════════════════
+async function laadSheetJS() {
+  if (window.XLSX) return true;
+  return new Promise(res => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload  = () => res(true);
+    s.onerror = () => res(false);
+    document.head.appendChild(s);
+  });
+}
+
+async function exportExcel() {
+  const datum  = selDatum;
+  const straat = selStraat;
+
+  let gefilt = metingen.filter(m => m.datum === datum);
+  if (straat) gefilt = gefilt.filter(m => straatUitAdres(m.adres) === straat);
+  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || a.type.localeCompare(b.type));
+
+  if (!gefilt.length) { toast('Geen metingen voor ' + datum + (straat ? ' / ' + straat : '')); return; }
+
+  toast('⏳ Excel aanmaken…');
+  const geladen = await laadSheetJS();
+  if (!geladen) { toast('❌ Geen internet voor Excel — probeer opnieuw'); return; }
+
+  const XLSX = window.XLSX;
+
+  // Rijen opbouwen
+  const rijen = gefilt.map(m => {
+    const info = TYPES[m.type] || { label: m.type, een: '' };
+    return {
+      'Datum':       m.datum,
+      'Adres':       m.adres,
+      'Naam':        getNaam(m.adres) || '',
+      'Straat':      straatUitAdres(m.adres),
+      'Type':        info.label,
+      'Stand':       m.type === 'kast' ? '' : m.stand,
+      'Eenheid':     m.type === 'kast' ? '' : info.een,
+      'Tijd':        m.tijd || '',
+      'Notitie':     m.notitie || '',
+      'Foto':        m.foto ? 'Ja' : 'Nee',
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rijen);
+
+  // Kolombreedtes instellen
+  ws['!cols'] = [
+    { wch: 12 }, // Datum
+    { wch: 20 }, // Adres
+    { wch: 20 }, // Naam
+    { wch: 18 }, // Straat
+    { wch: 10 }, // Type
+    { wch: 10 }, // Stand
+    { wch: 9  }, // Eenheid
+    { wch: 7  }, // Tijd
+    { wch: 30 }, // Notitie
+    { wch: 6  }, // Foto
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const tabNaam = straat ? straat.slice(0, 31) : 'Meterstanden';
+  XLSX.utils.book_append_sheet(wb, ws, tabNaam);
+
+  const straatSlug  = straat ? '_' + straat.replace(/\s+/g,'_') : '';
+  const bestandsnaam = `meterstanden_${datum}${straatSlug}.xlsx`;
+
+  // iOS: share sheet of nieuw tabblad
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS || (navigator.share && navigator.canShare)) {
+    try {
+      const buf  = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const file = new File([blob], bestandsnaam, { type: blob.type });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Meterstanden ${datum}${straat ? ' — '+straat : ''}` });
+        toast('✅ Gedeeld!');
+        return;
+      }
+      // Fallback: download via blob URL
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = bestandsnaam; a.click();
+      toast('✅ Excel opgeslagen!');
+      return;
+    } catch(e) { if (e.name === 'AbortError') return; }
+  }
+
+  XLSX.writeFile(wb, bestandsnaam);
+  toast('✅ Excel opgeslagen in downloads!');
+}
+
+// ══════════════════════════════════════════════════
+// FOTO'S DOWNLOADEN ALS ZIP via JSZip
+// ══════════════════════════════════════════════════
+async function laadJSZip() {
+  if (window.JSZip) return true;
+  return new Promise(res => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload  = () => res(true);
+    s.onerror = () => res(false);
+    document.head.appendChild(s);
+  });
+}
+
+// Zet base64 data-URL om naar Uint8Array
+function dataURLtoBytes(dataURL) {
+  const base64 = dataURL.split(',')[1];
+  const bin = atob(base64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+async function downloadFotos() {
+  const datum  = selDatum;
+  const straat = selStraat;
+
+  let gefilt = metingen.filter(m => m.datum === datum && m.foto);
+  if (straat) gefilt = gefilt.filter(m => straatUitAdres(m.adres) === straat);
+  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || a.type.localeCompare(b.type));
+
+  if (!gefilt.length) {
+    toast('Geen foto\'s voor ' + datum + (straat ? ' / ' + straat : ''));
+    return;
+  }
+
+  toast(`⏳ ${gefilt.length} foto's inpakken…`);
+  const geladen = await laadJSZip();
+  if (!geladen) { toast('❌ Geen internet — probeer opnieuw'); return; }
+
+  const zip = new window.JSZip();
+  const straatSlug = straat ? straat.replace(/\s+/g,'_') + '_' : '';
+
+  // Bijhouden van dubbele bestandsnamen
+  const naamTeller = {};
+
+  gefilt.forEach(m => {
+    const info   = TYPES[m.type] || { label: m.type };
+    const adresSlug = m.adres.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'');
+    const typeSlug  = info.label.toLowerCase();
+    const tijdSlug  = (m.tijd || '').replace(':','h');
+    let basisNaam   = `${adresSlug}_${typeSlug}${tijdSlug ? '_'+tijdSlug : ''}`;
+
+    // Uniek maken bij duplicaten
+    naamTeller[basisNaam] = (naamTeller[basisNaam] || 0) + 1;
+    const naam = naamTeller[basisNaam] > 1 ? `${basisNaam}_${naamTeller[basisNaam]}` : basisNaam;
+
+    zip.file(`${naam}.jpg`, dataURLtoBytes(m.foto));
+  });
+
+  const straatFolderSlug = straat ? straat.replace(/\s+/g,'_') : 'alle_straten';
+  const zipNaam = `fotos_${datum}_${straatFolderSlug}.zip`;
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+  // iOS: probeer share sheet
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS) {
+    try {
+      const file = new File([blob], zipNaam, { type: 'application/zip' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Foto's ${datum}${straat ? ' — '+straat : ''}` });
+        toast('✅ Gedeeld!');
+        return;
+      }
+    } catch(e) { if (e.name === 'AbortError') return; }
+  }
+
+  // Android / desktop: directe download
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = zipNaam; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast(`✅ ${gefilt.length} foto's gedownload als ZIP!`);
 }
 
 // ══════════════════════════════════════════════════
