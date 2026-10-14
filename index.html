@@ -87,7 +87,10 @@ input::placeholder{color:#9aacbe}
 .mi-del:active{color:var(--danger)}
 
 /* Rapport */
-.rp-hdr{font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.4px;padding:10px 16px;background:var(--accent);border-bottom:1px solid var(--border)}
+.rp-hdr{font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.4px;padding:10px 16px;background:var(--accent);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.rp-hdr-txt{flex:1;min-width:0}
+.rp-foto-btn{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.rp-foto-btn:active{background:rgba(255,255,255,.35)}
 
 /* Search + section header */
 .sbox{width:100%;padding:13px 16px;background:#fff;border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;margin-bottom:12px;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.07)}
@@ -467,26 +470,26 @@ function renderScan() {
 // RAPPORT TAB
 // ─────────────────────────────────────────────────
 function renderRapport() {
-  const datums = [...new Set(metingen.map(m => m.datum))].sort().reverse();
-  if (!datums.includes(selDatum)) selDatum = datums[0] || vandaag();
+  const datums   = [...new Set(metingen.map(m => m.datum))].sort().reverse();
+  const alleMode = selDatum === 'alle';
+  if (!alleMode && !datums.includes(selDatum)) selDatum = datums[0] || vandaag();
 
-  // Alle metingen voor geselecteerde datum
-  const alleGefilt = metingen.filter(m => m.datum === selDatum)
-    .sort((a,b) => a.adres.localeCompare(b.adres,'nl') || a.type.localeCompare(b.type));
+  // Basisfilter: alle datums of één dag
+  const alleGefilt = (alleMode ? [...metingen] : metingen.filter(m => m.datum === selDatum))
+    .sort((a,b) => a.adres.localeCompare(b.adres,'nl') || b.datum.localeCompare(a.datum) || a.type.localeCompare(b.type));
 
-  // Unieke straten detecteren
+  // Unieke straten (uit de volledige set)
   const straten = [...new Set(alleGefilt.map(m => straatUitAdres(m.adres)))].sort((a,b) => a.localeCompare(b,'nl'));
   if (selStraat && !straten.includes(selStraat)) selStraat = '';
 
-  // Filter op straat (leeg = alle straten)
   const gefilt = selStraat ? alleGefilt.filter(m => straatUitAdres(m.adres) === selStraat) : alleGefilt;
-
   const perAdres = {};
   gefilt.forEach(m => { (perAdres[m.adres] = perAdres[m.adres]||[]).push(m); });
 
   let html = `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
     <select id="datum-sel" style="flex:1;min-width:100px">
-      ${datums.length ? datums.map(d => `<option value="${d}"${d===selDatum?' selected':''}>${d}</option>`).join('') : `<option>${vandaag()}</option>`}
+      <option value="alle"${alleMode?' selected':''}>📅 Alle datums</option>
+      ${datums.map(d => `<option value="${d}"${d===selDatum?' selected':''}>${d}</option>`).join('')}
     </select>
     <button onclick="exportPDF()" style="padding:11px 14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;white-space:nowrap">📄 PDF</button>
     <button onclick="deelRapport()" style="padding:11px 14px;background:#1a8a3c;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;white-space:nowrap">📤 Delen</button>
@@ -494,7 +497,7 @@ function renderRapport() {
     <button onclick="downloadFotos()" style="padding:11px 14px;background:#7a4500;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;white-space:nowrap">📷 Foto's</button>
   </div>`;
 
-  // Straat-filter dropdown — alleen tonen als er meerdere straten zijn
+  // Straat-filter dropdown
   if (straten.length > 1) {
     html += `<select id="straat-sel" style="width:100%;margin-bottom:12px;padding:11px 12px;border-radius:10px;border:2px solid var(--border);background:var(--surf);color:var(--text);font-size:15px;font-weight:600">
       <option value="">🏘️ Alle straten — ${alleGefilt.length} metingen</option>
@@ -506,13 +509,17 @@ function renderRapport() {
   }
 
   if (!gefilt.length) {
-    return html + `<div class="leeg">📋 Geen metingen voor ${selDatum}</div>`;
+    return html + `<div class="leeg">📋 Geen metingen${selStraat ? ' voor '+selStraat : ''}</div>`;
   }
 
   Object.entries(perAdres).sort(([a],[b]) => a.localeCompare(b,'nl')).forEach(([adres, lijst]) => {
-    const naam = getNaam(adres);
-    html += `<div class="card"><div class="rp-hdr">${esc(adres)}${naam ? `<span style="font-weight:400;opacity:.75"> — ${esc(naam)}</span>` : ''}</div>`;
-    lijst.forEach(m => html += miHtml(m));
+    const naam      = getNaam(adres);
+    const heeftFoto = lijst.some(m => m.foto);
+    html += `<div class="card"><div class="rp-hdr">
+      <div class="rp-hdr-txt">${esc(adres)}${naam ? `<span style="font-weight:400;opacity:.75"> — ${esc(naam)}</span>` : ''}</div>
+      ${heeftFoto ? `<button class="rp-foto-btn" onclick="downloadFotos('${esc(adres).replace(/'/g,"\\'")}')">📷 PDF</button>` : ''}
+    </div>`;
+    lijst.forEach(m => html += miHtml(m, alleMode));
     html += `</div>`;
   });
   return html;
@@ -576,14 +583,17 @@ function renderBeheer() {
 // ─────────────────────────────────────────────────
 // METING ITEM HTML
 // ─────────────────────────────────────────────────
-function miHtml(m) {
+function miHtml(m, showDatum = false) {
   const info = TYPES[m.type] || { label:m.type, icon:'📊', een:'', kleur:'#888' };
   const standTxt = m.type === 'kast' ? 'Foto kast' : `${m.stand} ${info.een}`;
+  const metaTxt  = showDatum
+    ? `${info.label} · ${m.datum} · ${m.tijd || '—'}`
+    : `${info.label} · ${m.tijd || '—'}`;
   return `<div class="mi">
     <div class="mi-bar" style="background:${info.kleur}"></div>
     <div class="mi-info">
       <div class="mi-stand">${info.icon} ${esc(standTxt)}</div>
-      <div class="mi-meta">${info.label} · ${m.tijd || '—'}</div>
+      <div class="mi-meta">${metaTxt}</div>
       ${m.notitie ? `<div style="font-size:13px;color:var(--muted);margin-top:4px;font-style:italic">${esc(m.notitie)}</div>` : ''}
     </div>
     ${m.foto ? `<img src="${m.foto}" class="mi-thumb" data-lightbox-id="${m.id}">` : '<span style="width:54px"></span>'}
@@ -680,7 +690,7 @@ function bindAll() {
 
   // Datum select — reset straat bij wisselen datum
   const datumSel = document.getElementById('datum-sel');
-  if (datumSel) datumSel.onchange = e => { selDatum = e.target.value; selStraat = ''; render(); };
+  if (datumSel) datumSel.onchange = e => { selDatum = e.target.value; render(); };
 
   // Straat select
   const straatSel = document.getElementById('straat-sel');
@@ -836,14 +846,15 @@ function getImgDims(src) {
 }
 
 async function maakPDFDoc() {
-  const datum  = selDatum;
-  const straat = selStraat;
+  const datum    = selDatum;
+  const alleMode = datum === 'alle';
+  const straat   = selStraat;
 
-  let gefilt = metingen.filter(m => m.datum === datum);
+  let gefilt = alleMode ? [...metingen] : metingen.filter(m => m.datum === datum);
   if (straat) gefilt = gefilt.filter(m => straatUitAdres(m.adres) === straat);
-  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || a.type.localeCompare(b.type));
+  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || (alleMode ? b.datum.localeCompare(a.datum) : 0) || a.type.localeCompare(b.type));
 
-  if (!gefilt.length) { toast('Geen metingen voor ' + datum + (straat ? ' / ' + straat : '')); return null; }
+  if (!gefilt.length) { toast('Geen metingen' + (straat ? ' voor ' + straat : '')); return null; }
 
   toast('⏳ PDF aanmaken…');
 
@@ -871,9 +882,16 @@ async function maakPDFDoc() {
   doc.text('Meterstanden Camping', ML, y); y += 7;
   doc.setFontSize(10); doc.setFont('helvetica','normal');
   doc.setTextColor(120,120,120);
-  const subTxt = straat
-    ? `${datum}  ·  ${straat}  ·  ${gefilt.length} meting${gefilt.length!==1?'en':''}`
-    : `${datum}  ·  ${gefilt.length} meting${gefilt.length!==1?'en':''}`;
+  let subTxt;
+  if (alleMode) {
+    subTxt = straat
+      ? `${straat}  ·  alle datums  ·  ${gefilt.length} meting${gefilt.length!==1?'en':''}`
+      : `Alle datums  ·  ${gefilt.length} meting${gefilt.length!==1?'en':''}`;
+  } else {
+    subTxt = straat
+      ? `${datum}  ·  ${straat}  ·  ${gefilt.length} meting${gefilt.length!==1?'en':''}`
+      : `${datum}  ·  ${gefilt.length} meting${gefilt.length!==1?'en':''}`;
+  }
   doc.text(subTxt, ML, y); y += 4;
   doc.setDrawColor(26,82,118); doc.setLineWidth(0.4);
   doc.line(ML, y, ML+CW, y); y += 8;
@@ -924,7 +942,8 @@ async function maakPDFDoc() {
       doc.text(standTxt, ML+7, y+6.5);
       doc.setFontSize(9); doc.setFont('helvetica','normal');
       doc.setTextColor(130,130,130);
-      doc.text(`${info.label}  ·  ${m.tijd||'—'}`, ML+7, y+12);
+      const metaLn = alleMode ? `${info.label}  ·  ${m.datum}  ·  ${m.tijd||'—'}` : `${info.label}  ·  ${m.tijd||'—'}`;
+      doc.text(metaLn, ML+7, y+12);
       if (heeftNotitie) {
         doc.setFontSize(8); doc.setFont('helvetica','italic');
         doc.setTextColor(80,80,80);
@@ -949,18 +968,20 @@ async function maakPDFDoc() {
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.setFontSize(7); doc.setTextColor(190,190,190);
-    doc.text(`MeterScan Pro  ·  ${datum}  ·  Pagina ${i} van ${pages}`, ML, PH-7);
+    doc.text(`MeterScan Pro  ·  ${alleMode ? 'Alle datums' : datum}  ·  Pagina ${i} van ${pages}`, ML, PH-7);
   }
 
-  return { doc, datum, straat };
+  return { doc, datum: alleMode ? 'alle' : datum, straat, alleMode };
 }
 
 async function exportPDF() {
   const res = await maakPDFDoc();
   if (!res) return;
-  const { doc, datum, straat } = res;
+  const { doc, datum, straat, alleMode } = res;
   const straatSlug = straat ? '_' + straat.replace(/\s+/g,'_') : '';
-  const bestandsnaam = `meterstanden_${datum}${straatSlug}.pdf`;
+  const bestandsnaam = alleMode
+    ? `meterstanden_alle${straatSlug}.pdf`
+    : `meterstanden_${datum}${straatSlug}.pdf`;
 
   // Op iPhone werkt een normale download niet — gebruik share sheet of nieuw tabblad
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -969,7 +990,7 @@ async function exportPDF() {
       const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
       const file = new File([blob], bestandsnaam, { type: 'application/pdf' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: `Meterstanden ${datum}${straat ? ' — '+straat : ''}` });
+        await navigator.share({ files: [file], title: `Meterstanden ${alleMode ? 'alle datums' : datum}${straat ? ' — '+straat : ''}` });
         toast('✅ Gedeeld!');
       } else {
         const url = URL.createObjectURL(blob);
@@ -987,16 +1008,18 @@ async function exportPDF() {
 async function deelRapport() {
   const res = await maakPDFDoc();
   if (!res) return;
-  const { doc, datum, straat } = res;
+  const { doc, datum, straat, alleMode } = res;
   const straatSlug = straat ? '_' + straat.replace(/\s+/g,'_') : '';
-  const bestandsnaam = `meterstanden_${datum}${straatSlug}.pdf`;
+  const bestandsnaam = alleMode
+    ? `meterstanden_alle${straatSlug}.pdf`
+    : `meterstanden_${datum}${straatSlug}.pdf`;
 
   try {
     const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
     const file = new File([blob], bestandsnaam, { type: 'application/pdf' });
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: `Meterstanden ${datum}${straat ? ' — '+straat : ''}` });
+      await navigator.share({ files: [file], title: `Meterstanden ${alleMode ? 'alle datums' : datum}${straat ? ' — '+straat : ''}` });
       toast('✅ Gedeeld!');
     } else {
       // Fallback: open PDF in nieuw tabblad — tik daar op □↑ om te delen
@@ -1029,14 +1052,15 @@ async function laadSheetJS() {
 }
 
 async function exportExcel() {
-  const datum  = selDatum;
-  const straat = selStraat;
+  const datum    = selDatum;
+  const alleMode = datum === 'alle';
+  const straat   = selStraat;
 
-  let gefilt = metingen.filter(m => m.datum === datum);
+  let gefilt = alleMode ? [...metingen] : metingen.filter(m => m.datum === datum);
   if (straat) gefilt = gefilt.filter(m => straatUitAdres(m.adres) === straat);
-  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || a.type.localeCompare(b.type));
+  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || (alleMode ? b.datum.localeCompare(a.datum) : 0) || a.type.localeCompare(b.type));
 
-  if (!gefilt.length) { toast('Geen metingen voor ' + datum + (straat ? ' / ' + straat : '')); return; }
+  if (!gefilt.length) { toast('Geen metingen' + (straat ? ' voor ' + straat : '')); return; }
 
   toast('⏳ Excel aanmaken…');
   const geladen = await laadSheetJS();
@@ -1082,7 +1106,9 @@ async function exportExcel() {
   XLSX.utils.book_append_sheet(wb, ws, tabNaam);
 
   const straatSlug  = straat ? '_' + straat.replace(/\s+/g,'_') : '';
-  const bestandsnaam = `meterstanden_${datum}${straatSlug}.xlsx`;
+  const bestandsnaam = alleMode
+    ? `meterstanden_alle${straatSlug}.xlsx`
+    : `meterstanden_${datum}${straatSlug}.xlsx`;
 
   // iOS: share sheet of nieuw tabblad
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -1092,7 +1118,7 @@ async function exportExcel() {
       const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const file = new File([blob], bestandsnaam, { type: blob.type });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: `Meterstanden ${datum}${straat ? ' — '+straat : ''}` });
+        await navigator.share({ files: [file], title: `Meterstanden ${alleMode ? 'alle datums' : datum}${straat ? ' — '+straat : ''}` });
         toast('✅ Gedeeld!');
         return;
       }
@@ -1110,89 +1136,150 @@ async function exportExcel() {
 }
 
 // ══════════════════════════════════════════════════
-// FOTO'S DOWNLOADEN ALS ZIP via JSZip
+// FOTO-PDF — alle foto's groot op A4, met adres label
 // ══════════════════════════════════════════════════
-async function laadJSZip() {
-  if (window.JSZip) return true;
-  return new Promise(res => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    s.onload  = () => res(true);
-    s.onerror = () => res(false);
-    document.head.appendChild(s);
-  });
-}
+// adresFilter: optioneel — geef adres mee voor 1 adres, leeg voor alle straten/straat
+async function downloadFotos(adresFilter) {
+  const datum    = selDatum;
+  const alleMode = !adresFilter && datum === 'alle';
+  const straat   = adresFilter ? straatUitAdres(adresFilter) : selStraat;
 
-// Zet base64 data-URL om naar Uint8Array
-function dataURLtoBytes(dataURL) {
-  const base64 = dataURL.split(',')[1];
-  const bin = atob(base64);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return arr;
-}
-
-async function downloadFotos() {
-  const datum  = selDatum;
-  const straat = selStraat;
-
-  let gefilt = metingen.filter(m => m.datum === datum && m.foto);
-  if (straat) gefilt = gefilt.filter(m => straatUitAdres(m.adres) === straat);
-  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || a.type.localeCompare(b.type));
+  let gefilt = (alleMode ? [...metingen] : metingen.filter(m => m.datum === datum))
+    .filter(m => m.foto);
+  if (adresFilter) {
+    gefilt = gefilt.filter(m => m.adres === adresFilter);
+  } else if (straat) {
+    gefilt = gefilt.filter(m => straatUitAdres(m.adres) === straat);
+  }
+  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || (alleMode ? b.datum.localeCompare(a.datum) : 0) || a.type.localeCompare(b.type));
 
   if (!gefilt.length) {
-    toast('Geen foto\'s voor ' + datum + (straat ? ' / ' + straat : ''));
+    toast('Geen foto\'s' + (adresFilter ? ' voor '+adresFilter : straat ? ' voor '+straat : ''));
     return;
   }
 
-  toast(`⏳ ${gefilt.length} foto's inpakken…`);
-  const geladen = await laadJSZip();
+  toast(`⏳ ${gefilt.length} foto's in PDF zetten…`);
+  const geladen = await laadJsPDF();
   if (!geladen) { toast('❌ Geen internet — probeer opnieuw'); return; }
 
-  const zip = new window.JSZip();
-  const straatSlug = straat ? straat.replace(/\s+/g,'_') + '_' : '';
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
-  // Bijhouden van dubbele bestandsnamen
-  const naamTeller = {};
+  const PW = 210, PH = 297;
+  const ML = 12, MR = 12, MT = 12;
+  const CW = PW - ML - MR;
 
-  gefilt.forEach(m => {
-    const info   = TYPES[m.type] || { label: m.type };
-    const adresSlug = m.adres.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'');
-    const typeSlug  = info.label.toLowerCase();
-    const tijdSlug  = (m.tijd || '').replace(':','h');
-    let basisNaam   = `${adresSlug}_${typeSlug}${tijdSlug ? '_'+tijdSlug : ''}`;
+  // Eén adres → 1 foto per pagina, groot
+  // Meerdere adressen → 2 foto's naast elkaar
+  const eenAdres = !!adresFilter;
+  const COLS  = eenAdres ? 1 : 2;
+  const fW    = eenAdres ? CW : (CW - 6) / 2;
+  const labelH = 14;
 
-    // Uniek maken bij duplicaten
-    naamTeller[basisNaam] = (naamTeller[basisNaam] || 0) + 1;
-    const naam = naamTeller[basisNaam] > 1 ? `${basisNaam}_${naamTeller[basisNaam]}` : basisNaam;
+  let y = MT, col = 0;
 
-    zip.file(`${naam}.jpg`, dataURLtoBytes(m.foto));
-  });
+  // Header
+  const headerTitel = adresFilter
+    ? `Foto's — ${adresFilter}${getNaam(adresFilter) ? '  ·  '+getNaam(adresFilter) : ''}`
+    : alleMode
+      ? `Foto's meterstanden — alle datums${straat ? '  ·  '+straat : ''}`
+      : `Foto's meterstanden — ${datum}${straat ? '  ·  '+straat : ''}`;
+  doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.setTextColor(26,82,118);
+  doc.text(headerTitel, ML, y); y += 5;
+  doc.setDrawColor(26,82,118); doc.setLineWidth(0.3);
+  doc.line(ML, y, ML+CW, y); y += 6;
 
-  const straatFolderSlug = straat ? straat.replace(/\s+/g,'_') : 'alle_straten';
-  const zipNaam = `fotos_${datum}_${straatFolderSlug}.zip`;
+  for (const m of gefilt) {
+    const info = TYPES[m.type] || { label: m.type, een: '' };
 
-  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    const dims = await getImgDims(m.foto);
+    // Bereken hoogte: vul breedte, maar max 70% van paginahoogte (minus header + label)
+    const maxFH = eenAdres ? PH - MT - MT - labelH - 30 : 80;
+    const fH    = Math.min(Math.round(fW * dims.h / dims.w), maxFH);
+    const blokH = fH + labelH;
 
-  // iOS: probeer share sheet
+    // Pagina-overloop check
+    if (col === 0 && y + blokH > PH - MT) { doc.addPage(); y = MT; }
+    if (col === 1 && y + blokH > PH - MT) { doc.addPage(); y = MT; col = 0; }
+
+    const bx = ML + col * (fW + 6);
+
+    // Foto
+    try { doc.addImage(m.foto, 'JPEG', bx, y, fW, fH, undefined, 'FAST'); }
+    catch(e) { /* overslaan */ }
+
+    // Label onder foto
+    doc.setFillColor(26,82,118);
+    doc.rect(bx, y + fH, fW, labelH, 'F');
+    doc.setTextColor(255,255,255);
+
+    if (eenAdres) {
+      // 1 adres: toon type + tijd groot, notitie klein
+      doc.setFontSize(10); doc.setFont('helvetica','bold');
+      doc.text(`${info.icon || ''} ${info.label}`, bx + 3, y + fH + 6);
+      doc.setFontSize(9); doc.setFont('helvetica','normal');
+      doc.setTextColor(200,220,255);
+      doc.text(m.tijd || '', bx + fW - 3, y + fH + 6, { align: 'right' });
+      if (m.notitie) {
+        doc.setFontSize(8); doc.setTextColor(220,235,255);
+        doc.text(m.notitie, bx + 3, y + fH + 11.5, { maxWidth: fW - 6 });
+      }
+    } else {
+      // Meerdere adressen: toon adres + type
+      doc.setFontSize(8); doc.setFont('helvetica','bold');
+      doc.text(m.adres, bx + 2, y + fH + 5.5, { maxWidth: fW - 4 });
+      const naam = getNaam(m.adres);
+      if (naam) { doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.text(naam, bx + 2, y + fH + 10, { maxWidth: fW - 4 }); }
+      doc.setFontSize(7); doc.setTextColor(200,220,255);
+      const fotoMeta = alleMode ? `${m.datum}  ·  ${info.label}  ·  ${m.tijd||''}` : `${info.label}  ·  ${m.tijd||''}`;
+      doc.text(fotoMeta, bx + fW - 2, y + fH + 5.5, { align: 'right', maxWidth: fW - 4 });
+    }
+
+    col++;
+    if (col >= COLS) { col = 0; y += blokH + (eenAdres ? 10 : 8); }
+  }
+
+  // Voettekst
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7); doc.setTextColor(190,190,190);
+    doc.text(`MeterScan Pro  ·  ${alleMode ? 'Alle datums' : datum}  ·  Pagina ${i} van ${pages}`, ML, PH - 7);
+  }
+
+  const adresSlug  = adresFilter ? '_' + adresFilter.replace(/\s+/g,'_') : '';
+  const straatSlug = !adresFilter && straat ? '_' + straat.replace(/\s+/g,'_') : '';
+  const bestandsnaam = adresFilter
+    ? `fotos_${datum}${adresSlug}.pdf`
+    : alleMode
+      ? `fotos_alle${straatSlug}.pdf`
+      : `fotos_${datum}${straatSlug}.pdf`;
+  const deelTitel = adresFilter
+    ? `Foto's ${adresFilter}`
+    : alleMode
+      ? `Foto's alle datums${straat ? ' — '+straat : ''}`
+      : `Foto's ${datum}${straat ? ' — '+straat : ''}`;
+
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   if (isIOS) {
     try {
-      const file = new File([blob], zipNaam, { type: 'application/zip' });
+      const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+      const file = new File([blob], bestandsnaam, { type: 'application/pdf' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: `Foto's ${datum}${straat ? ' — '+straat : ''}` });
+        await navigator.share({ files: [file], title: deelTitel });
         toast('✅ Gedeeld!');
-        return;
+      } else {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        toast('📄 Tik op □↑ in Safari om te delen');
       }
+      return;
     } catch(e) { if (e.name === 'AbortError') return; }
   }
 
-  // Android / desktop: directe download
-  const url = URL.createObjectURL(blob);
-  const a   = document.createElement('a');
-  a.href = url; a.download = zipNaam; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-  toast(`✅ ${gefilt.length} foto's gedownload als ZIP!`);
+  doc.save(bestandsnaam);
+  toast(`✅ ${gefilt.length} foto's als PDF opgeslagen!`);
 }
 
 // ══════════════════════════════════════════════════
