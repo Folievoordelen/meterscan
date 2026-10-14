@@ -301,7 +301,7 @@ function getAdressen() {
   const weg   = JSON.parse(localStorage.getItem('ms_weg')   || '[]');
   return [...new Set([...STANDAARD, ...extra])]
     .filter(a => !weg.includes(a))
-    .sort((a, b) => a.localeCompare(b, 'nl'));
+    .sort((a, b) => a.localeCompare(b, 'nl', { numeric: true }));
 }
 
 // Namen per adres
@@ -476,10 +476,10 @@ function renderRapport() {
 
   // Basisfilter: alle datums of één dag
   const alleGefilt = (alleMode ? [...metingen] : metingen.filter(m => m.datum === selDatum))
-    .sort((a,b) => a.adres.localeCompare(b.adres,'nl') || b.datum.localeCompare(a.datum) || a.type.localeCompare(b.type));
+    .sort((a,b) => a.adres.localeCompare(b.adres,'nl',{numeric:true}) || b.datum.localeCompare(a.datum) || a.type.localeCompare(b.type));
 
   // Unieke straten (uit de volledige set)
-  const straten = [...new Set(alleGefilt.map(m => straatUitAdres(m.adres)))].sort((a,b) => a.localeCompare(b,'nl'));
+  const straten = [...new Set(alleGefilt.map(m => straatUitAdres(m.adres)))].sort((a,b) => a.localeCompare(b,'nl',{numeric:true}));
   if (selStraat && !straten.includes(selStraat)) selStraat = '';
 
   const gefilt = selStraat ? alleGefilt.filter(m => straatUitAdres(m.adres) === selStraat) : alleGefilt;
@@ -512,7 +512,7 @@ function renderRapport() {
     return html + `<div class="leeg">📋 Geen metingen${selStraat ? ' voor '+selStraat : ''}</div>`;
   }
 
-  Object.entries(perAdres).sort(([a],[b]) => a.localeCompare(b,'nl')).forEach(([adres, lijst]) => {
+  Object.entries(perAdres).sort(([a],[b]) => a.localeCompare(b,'nl',{numeric:true})).forEach(([adres, lijst]) => {
     const naam      = getNaam(adres);
     const heeftFoto = lijst.some(m => m.foto);
     html += `<div class="card"><div class="rp-hdr">
@@ -852,7 +852,7 @@ async function maakPDFDoc() {
 
   let gefilt = alleMode ? [...metingen] : metingen.filter(m => m.datum === datum);
   if (straat) gefilt = gefilt.filter(m => straatUitAdres(m.adres) === straat);
-  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || (alleMode ? b.datum.localeCompare(a.datum) : 0) || a.type.localeCompare(b.type));
+  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl',{numeric:true}) || (alleMode ? b.datum.localeCompare(a.datum) : 0) || a.type.localeCompare(b.type));
 
   if (!gefilt.length) { toast('Geen metingen' + (straat ? ' voor ' + straat : '')); return null; }
 
@@ -899,7 +899,7 @@ async function maakPDFDoc() {
   const perAdres = {};
   gefilt.forEach(m => { (perAdres[m.adres] = perAdres[m.adres]||[]).push(m); });
 
-  for (const [adres, lijst] of Object.entries(perAdres).sort(([a],[b]) => a.localeCompare(b,'nl'))) {
+  for (const [adres, lijst] of Object.entries(perAdres).sort(([a],[b]) => a.localeCompare(b,'nl',{numeric:true}))) {
     checkPB(22);
 
     // Adres header
@@ -1058,7 +1058,7 @@ async function exportExcel() {
 
   let gefilt = alleMode ? [...metingen] : metingen.filter(m => m.datum === datum);
   if (straat) gefilt = gefilt.filter(m => straatUitAdres(m.adres) === straat);
-  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || (alleMode ? b.datum.localeCompare(a.datum) : 0) || a.type.localeCompare(b.type));
+  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl',{numeric:true}) || (alleMode ? b.datum.localeCompare(a.datum) : 0) || a.type.localeCompare(b.type));
 
   if (!gefilt.length) { toast('Geen metingen' + (straat ? ' voor ' + straat : '')); return; }
 
@@ -1151,7 +1151,7 @@ async function downloadFotos(adresFilter) {
   } else if (straat) {
     gefilt = gefilt.filter(m => straatUitAdres(m.adres) === straat);
   }
-  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl') || (alleMode ? b.datum.localeCompare(a.datum) : 0) || a.type.localeCompare(b.type));
+  gefilt = gefilt.sort((a,b) => a.adres.localeCompare(b.adres,'nl',{numeric:true}) || (alleMode ? b.datum.localeCompare(a.datum) : 0) || a.type.localeCompare(b.type));
 
   if (!gefilt.length) {
     toast('Geen foto\'s' + (adresFilter ? ' voor '+adresFilter : straat ? ' voor '+straat : ''));
